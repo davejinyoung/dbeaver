@@ -123,6 +123,15 @@ public class SQLScriptParser {
             int tokenLength = ruleScanner.getTokenLength();
 
             SQLTokenType tokenType = token instanceof TPTokenDefault ? (SQLTokenType) ((TPTokenDefault)token).getData() : SQLTokenType.T_OTHER;
+
+//            log.debug(String.format(
+//                    "parseQueryImpl >> tokenType=%s offset=%d length=%d text=[%s]",
+//                    tokenType,
+//                    tokenOffset,
+//                    tokenLength,
+//                    tokenLength > 0 ? document.get(tokenOffset, tokenLength) : ""
+//            ));
+
             if (tokenOffset < startPos) {
                 // This may happen with EOF tokens (bug in jface?)
                 return null;
@@ -161,6 +170,7 @@ public class SQLScriptParser {
                     }
                 }
                 if (tokenType == SQLTokenType.T_BLOCK_BEGIN && prevNotEmptyTokenType == SQLTokenType.T_BLOCK_END) {
+                    log.debug("parseQueryImpl >> Found a block-begin right after block-end. Marking as T_UNKNOWN.");
                     // This is a tricky thing.
                     // In some dialects block end looks like END CASE, END LOOP. It is parsed as
                     // Block end followed by block begin (as CASE and LOOP are block begin tokens)
@@ -197,18 +207,23 @@ public class SQLScriptParser {
                     // that block is not preceded by the prefix e.g 'AS', because in many dialects
                     // there's no direct header block terminators
                     // like 'BEGIN ... END' but 'DECLARE ... BEGIN ... END'
+                    log.debug("parseQueryImpl >> Pushing new ScriptBlockInfo for BEGIN. curBlock=" + curBlock);
                     if (curBlock != null && curBlock.isHeader && !ArrayUtils.containsIgnoreCase(dialect.getInnerBlockPrefixes(), lastKeyword)) {
                         curBlock = curBlock.parent;
                     }
                     curBlock = new ScriptBlockInfo(curBlock, false);
+                    log.debug("parseQueryImpl >> After push, curBlock=" + curBlock);
                     hasBlocks = true;
                 } else if (tokenType == SQLTokenType.T_BLOCK_END) {
+                    log.debug("parseQueryImpl >> Popping curBlock for END. curBlock=" + curBlock);
                     if (curBlock != null) {
                         if (curBlock.togglePattern != null) {
+                            log.trace("... toggled block mismatch ...");
                             log.trace("SQLScriptParser: blocks structure recognition inconsistency - trying to leave toggled block on non-togging token");
                         } else {
                             curBlock = curBlock.parent;
                         }
+                        log.debug("parseQueryImpl >> After pop, curBlock=" + curBlock);
                     }
                 } else if (isDelimiter && curBlock != null) {
                     // Delimiter in some brackets or inside block. Ignore it.
@@ -359,6 +374,8 @@ public class SQLScriptParser {
                             queryEndPos - statementStart
                         );
                         query.setEndsWithDelimiter(tokenType == SQLTokenType.T_DELIMITER);
+                        log.debug("parseQueryImpl >> Finalizing query from " + statementStart + " to " + tokenOffset
+                                + ", text= [" + queryText + "]");
                         return query;
                     }
                 }

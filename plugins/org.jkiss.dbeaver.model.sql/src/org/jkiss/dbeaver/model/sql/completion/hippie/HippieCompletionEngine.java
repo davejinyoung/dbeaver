@@ -234,7 +234,7 @@ public final class HippieCompletionEngine {
      * @param document        the document to be scanned
      * @param prefix          the prefix to search for
      * @param firstPosition   the initial position in the document that the search will start from. In
-     *                        order to search from the beginning of the document use
+     *                        order to seardch from the beginning of the document use
      *                        <code>firstPosition=0</code>.
      * @param currentWordLast if <code>true</code> the word at caret position should be that last
      *                        completion. <code>true</code> is good for searching in the currently open document

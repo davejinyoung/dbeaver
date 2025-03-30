@@ -115,15 +115,38 @@ public class SQLCompletionAnalyzer implements DBRRunnableParametrized<DBRProgres
         runAnalyzer();
     }
 
+    /*********************************************************************************
+     * This method is the heart of SQL completion analysis. It inspects the current
+     * context (cursor position, last token, whether we are in a literal, etc.) and
+     * decides what completions to propose (keywords, columns, tables, etc.).
+     ********************************************************************************/
     private void runAnalyzer() throws DBException {
+        // Gets the word part currently under the cursor.
         String searchPrefix = request.getWordPart();
+
+        // Nullifies the query type initially (TABLE, COLUMN, EXEC, or JOIN)
+        // The idea is to try and deduce it from the surrounding SQL context
         request.setQueryType(null);
+
+
         SQLWordPartDetector wordDetector = request.getWordDetector();
         SQLSyntaxManager syntaxManager = request.getContext().getSyntaxManager();
+
+        // The "previous key work" is the token that appears right before the search prefix
         String prevKeyWord = wordDetector.getPrevKeyWord();
+        log.debug("runAnalyzer >> prevKeyWord=" + prevKeyWord
+                + ", wordPart=" + request.getWordPart());
         boolean isPrevWordEmpty = CommonUtils.isEmpty(wordDetector.getPrevWords());
+
+        // The following boolean tracks if we are "in a literal" (like 'some text')
+        // This is done such that we can skip normal auto-completion.
         boolean isInLiteral = SQLParserPartitions.CONTENT_TYPE_SQL_STRING.equals(request.getContentType());
+        log.debug("SQLCompletionAnalyzer.runAnalyzer >> isInLiteral=" + isInLiteral
+                + ", contentType=" + request.getContentType());
+
+        // The delimer that appears immediately before the current token in the text (e.g. a comma, parentheses, etc.).
         String prevDelimiter = wordDetector.getPrevDelimiter();
+
         // Here we handle the case when user started typing the new query on the next line without query delimiter for the previous one.
         // If setting `Blank line is statement delimiter` set, then active query is only newly typed characters
         // and prev word can't exist in this new query - offset of prev word doesn't fit active query offset, so we set it accordingly.
@@ -131,8 +154,13 @@ public class SQLCompletionAnalyzer implements DBRRunnableParametrized<DBRProgres
             prevKeyWord = null;
             isPrevWordEmpty = true;
         }
+
+        // Try to deduce the query type from the preceding keyword
         {
+            // If there is a preceding keyword at all
             if (!CommonUtils.isEmpty(prevKeyWord)) {
+                // If it's an entity query word (like SELECT, INSERT, DELETE, etc.),
+                // we try to refine the query type further
                 if (syntaxManager.getDialect().isEntityQueryWord(prevKeyWord)) {
                     // TODO: its an ugly hack. Need a better way
                     if (SQLConstants.KEYWORD_DELETE.equals(prevKeyWord) ||
