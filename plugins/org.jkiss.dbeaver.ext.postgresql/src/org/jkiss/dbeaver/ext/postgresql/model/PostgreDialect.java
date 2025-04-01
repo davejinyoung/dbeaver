@@ -1272,4 +1272,20 @@ public class PostgreDialect extends JDBCSQLDialect implements TPRuleProvider, SQ
     public boolean isEscapeBackslash() {
         return true;
     }
+
+    @Override
+    public boolean isEntityQueryWord(String word) {
+        // Debug log
+//        log.debug("PostgreDialect.isEntityQueryWord(" + word + ")");
+
+        // If the user typed "PERFORM" as the last keyword,
+        // treat it like SELECT/UPDATE/DELETE (i.e. an entity-query word).
+        if ("PERFORM".equalsIgnoreCase(word)) {
+//            log.debug("Recognizing 'PERFORM' as an entity query word in PostgreDialect");
+            return true;
+        }
+        // Fallback to standard logic for all other keywords
+        return super.isEntityQueryWord(word);
+    }
+
 }
